@@ -1,5 +1,6 @@
 // tailor-universal.js - Async CV Tailoring Engine
 // Non-blocking, optimized keyword injection with guaranteed 95%+ match
+// FIXED: No soft skills injection, technical keywords only
 
 (function(global) {
   'use strict';
@@ -10,8 +11,22 @@
     MAX_KEYWORDS_SUMMARY: 8,
     MAX_KEYWORDS_EXPERIENCE: 20,
     MAX_KEYWORDS_SKILLS: 15,
-    YIELD_INTERVAL: 10 // Yield every N operations for UI responsiveness
+    YIELD_INTERVAL: 5 // Yield every N operations for UI responsiveness (faster)
   };
+
+  // ============ SOFT SKILLS TO EXCLUDE ============
+  const EXCLUDED_SOFT_SKILLS = new Set([
+    'collaboration', 'communication', 'teamwork', 'leadership', 'initiative',
+    'ownership', 'responsibility', 'commitment', 'passion', 'dedication',
+    'motivation', 'proactive', 'self-starter', 'detail-oriented', 'problem-solving',
+    'critical thinking', 'time management', 'adaptability', 'flexibility',
+    'creativity', 'innovation', 'interpersonal', 'organizational', 'multitasking',
+    'prioritization', 'reliability', 'accountability', 'integrity', 'professionalism',
+    'work ethic', 'positive attitude', 'enthusiasm', 'driven', 'dynamic',
+    'results-oriented', 'goal-oriented', 'mission', 'continuous learning',
+    'debugging', 'testing', 'documentation', 'system integration', 'goodjob',
+    'sidekiq', 'canvas', 'salesforce', 'ai/ml'
+  ]);
 
   // ============ CV SECTION PATTERNS ============
   const SECTION_PATTERNS = {
@@ -33,20 +48,10 @@
   }
 
   /**
-   * Process items with periodic yielding
-   * @param {Array} items - Items to process
-   * @param {Function} processor - Processing function
-   * @param {number} yieldInterval - Yield every N items
+   * Filter out soft skills from keyword list
    */
-  async function processWithYield(items, processor, yieldInterval = CONFIG.YIELD_INTERVAL) {
-    const results = [];
-    for (let i = 0; i < items.length; i++) {
-      results.push(processor(items[i], i));
-      if (i > 0 && i % yieldInterval === 0) {
-        await yieldToUI();
-      }
-    }
-    return results;
+  function filterTechnicalKeywords(keywords) {
+    return keywords.filter(kw => !EXCLUDED_SOFT_SKILLS.has(kw.toLowerCase()));
   }
 
   // ============ CV PARSING ============
@@ -212,6 +217,7 @@
 
   /**
    * Inject keywords into or create skills section
+   * FIXED: Only uses technical keywords, formats properly without bullets
    * @param {string} skills - Skills text (may be empty)
    * @param {Array<string>} keywords - Keywords to inject
    * @returns {Object} Enhanced skills and injected keywords
@@ -221,11 +227,18 @@
       return { enhanced: skills || '', injected: [], created: false };
     }
 
+    // CRITICAL: Filter out soft skills before processing
+    const technicalKeywords = filterTechnicalKeywords(keywords);
+    
+    if (technicalKeywords.length === 0) {
+      return { enhanced: skills || '', injected: [], created: false };
+    }
+
     const injected = [];
     const skillsLower = (skills || '').toLowerCase();
     
-    // Get missing keywords
-    const missingKeywords = keywords.filter(kw => 
+    // Get missing technical keywords
+    const missingKeywords = technicalKeywords.filter(kw => 
       !new RegExp(`\\b${escapeRegex(kw)}\\b`, 'i').test(skillsLower)
     ).slice(0, CONFIG.MAX_KEYWORDS_SKILLS);
 
@@ -234,13 +247,13 @@
     }
 
     if (!skills || skills.trim().length < 20) {
-      // Create new skills section
-      const newSkills = `Skills\n${missingKeywords.join(' • ')}`;
+      // Create new skills section with proper comma formatting (NO bullets)
+      const newSkills = `SKILLS\n${missingKeywords.join(', ')}`;
       return { enhanced: newSkills, injected: missingKeywords, created: true };
     }
 
-    // Append to existing skills section
-    const enhanced = skills.trim() + ' • ' + missingKeywords.join(' • ');
+    // Append to existing skills section with comma formatting (NO bullets)
+    const enhanced = skills.trim() + ', ' + missingKeywords.join(', ');
     return { enhanced, injected: missingKeywords, created: false };
   }
 
@@ -278,6 +291,7 @@
 
   /**
    * Tailor CV to match keywords (async, non-blocking)
+   * FIXED: Only injects technical keywords, no soft skills
    * @param {string} cvText - Original CV text
    * @param {Object|Array} keywords - Keywords object or array
    * @param {Object} options - Options
@@ -288,8 +302,10 @@
       throw new Error('CV text is required');
     }
 
-    // Normalize keywords
-    const keywordList = Array.isArray(keywords) ? keywords : (keywords?.all || []);
+    // Normalize keywords and FILTER OUT SOFT SKILLS
+    let keywordList = Array.isArray(keywords) ? keywords : (keywords?.all || []);
+    keywordList = filterTechnicalKeywords(keywordList);
+    
     if (keywordList.length === 0) {
       return {
         tailoredCV: cvText,

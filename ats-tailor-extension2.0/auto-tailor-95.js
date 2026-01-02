@@ -46,8 +46,8 @@
       this.onScoreUpdate(initialMatch.score, 'initial');
       this.onChipsUpdate(keywords, baseCV, 'initial');
 
-      // Short delay to show initial state
-      await this.delay(300); // Reduced from 500ms for speed
+      // Short delay to show initial state - 50% faster
+      await this.delay(150); // Reduced from 300ms for 50% speed boost
 
       // Step 3: Auto-tailor CV to inject missing keywords
       this.onProgress(50, 'Tailoring CV for ATS optimization...');
@@ -57,14 +57,13 @@
       this.onProgress(75, 'Recalculating match score...');
       const finalMatch = this.calculateFinalMatch(tailorResult.tailoredCV, keywords);
       
-      // Animate score update
+      // Animate score update - 50% faster
       if (global.DynamicScore) {
         global.DynamicScore.animateScore(
           initialMatch.score, 
           finalMatch.score, 
           (score) => this.onScoreUpdate(score, 'animating'),
-          800 // Faster animation
-        );
+          400 // Faster animation (was 800ms)
       } else {
         this.onScoreUpdate(finalMatch.score, 'final');
       }
