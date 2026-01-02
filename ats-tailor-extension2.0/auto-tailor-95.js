@@ -20,7 +20,7 @@
     }
 
     /**
-     * Full automatic tailoring workflow
+     * Full automatic tailoring workflow - TURBO MODE (350ms total)
      * @param {string} jobDescription - Job description text
      * @param {string} baseCV - Original CV text
      * @returns {Promise<Object>} Tailored CV with final score
@@ -30,57 +30,54 @@
         throw new Error('Job description and CV are required');
       }
 
-      // Step 1: Extract keywords (up to 35, dynamic based on JD length)
-      this.onProgress(10, 'Extracting keywords from job description...');
-      const keywords = await this.extractJobKeywords(jobDescription);
+      const startTime = performance.now();
+
+      // Step 1: Extract keywords with TurboPipeline (≤50ms)
+      this.onProgress(10, 'Extracting keywords...');
+      let keywords;
+      if (global.TurboPipeline?.turboExtractKeywords) {
+        keywords = await global.TurboPipeline.turboExtractKeywords(jobDescription, this.maxKeywords);
+      } else {
+        keywords = await this.extractJobKeywords(jobDescription);
+      }
       
       if (!keywords.all || keywords.all.length === 0) {
         throw new Error('Could not extract keywords from job description');
       }
 
-      // Step 2: Calculate initial match (typically 50-75%)
-      this.onProgress(25, 'Analyzing initial match...');
+      // Step 2: Calculate initial match (instant - no delay)
+      this.onProgress(30, 'Analyzing match...');
       const initialMatch = this.calculateInitialMatch(baseCV, keywords);
-      
-      // Show initial score and chips
       this.onScoreUpdate(initialMatch.score, 'initial');
       this.onChipsUpdate(keywords, baseCV, 'initial');
 
-      // Short delay to show initial state - ULTRA FAST
-      await this.delay(50); // Reduced from 150ms for maximum speed
+      // NO DELAY - proceed immediately for speed
 
-      // Step 3: Auto-tailor CV to inject missing keywords - USE TURBO PIPELINE
-      this.onProgress(50, 'Boosting CV to 95-100% match...');
+      // Step 3: Auto-tailor CV with TurboPipeline (≤100ms)
+      this.onProgress(50, 'Boosting CV...');
       
-      // Use TurboPipeline for 50% faster tailoring
       let tailorResult;
-      if (global.TurboPipeline) {
-        tailorResult = await global.TurboPipeline.turboTailorCV(baseCV, keywords);
+      if (global.TurboPipeline?.turboTailorCV) {
+        tailorResult = await global.TurboPipeline.turboTailorCV(baseCV, keywords, { targetScore: this.targetScore });
+      } else if (global.TailorUniversal?.tailorCV) {
+        tailorResult = await global.TailorUniversal.tailorCV(baseCV, keywords, { targetScore: this.targetScore });
       } else {
         tailorResult = await this.tailorCVForTarget(baseCV, keywords, initialMatch);
       }
       
-      // Step 4: Recalculate with tailored CV (should be 95%+)
-      this.onProgress(85, 'Finalizing...');
+      // Step 4: Recalculate with tailored CV (instant)
+      this.onProgress(80, 'Verifying 95%+ match...');
       const finalMatch = this.calculateFinalMatch(tailorResult.tailoredCV, keywords);
       
-      // Animate score update - ULTRA FAST
-      if (global.DynamicScore) {
-        global.DynamicScore.animateScore(
-          initialMatch.score, 
-          finalMatch.score, 
-          (score) => this.onScoreUpdate(score, 'animating'),
-          200 // Ultra fast animation (was 400ms)
-        );
-      } else {
-        this.onScoreUpdate(finalMatch.score, 'final');
-      }
-      
-      // Update chips with final state
+      // Instant score update (no animation for speed)
+      this.onScoreUpdate(finalMatch.score, 'final');
       this.onChipsUpdate(keywords, tailorResult.tailoredCV, 'final');
 
-      // Step 5: Prepare result
+      // Step 5: Complete
       this.onProgress(100, 'Complete!');
+
+      const totalTime = performance.now() - startTime;
+      console.log(`[AutoTailor95] ✅ Tailoring complete in ${totalTime.toFixed(0)}ms`);
 
       return {
         tailoredCV: tailorResult.tailoredCV,
@@ -94,7 +91,8 @@
         stats: {
           keywordsExtracted: keywords.all.length,
           keywordsInjected: tailorResult.injectedKeywords?.length || 0,
-          scoreImprovement: finalMatch.score - initialMatch.score
+          scoreImprovement: finalMatch.score - initialMatch.score,
+          totalTimeMs: totalTime
         }
       };
     }

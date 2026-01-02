@@ -1,33 +1,34 @@
 /**
- * ATS-Perfect PDF Generator
- * Creates 100% parsable, recruiter-friendly PDFs with proper structure
- * NO bullet symbols (•), NO injected soft skills, CLEAN formatting
+ * ATS-Perfect PDF Generator - 100% PARSABLE + RECRUITER PERFECT
+ * Font: Arial 10.5pt | Margins: 0.75" | Line Height: 1.15
+ * Skills: COMMA-SEPARATED single line | Bullets: dash (-) only
+ * NO tables, images, headers/footers - Pure ATS-friendly text
  */
 
 (function() {
   'use strict';
 
   const PDFATSPerfect = {
-    // PDF configuration for 100% ATS compatibility
+    // PDF configuration for 100% ATS compatibility - RECRUITER SPEC
     CONFIG: {
       format: 'a4',
       unit: 'pt',
       margins: {
-        top: 72,      // 1 inch = 72 points
-        bottom: 72,
-        left: 72,
-        right: 72
+        top: 54,      // 0.75 inch = 54 points (tighter for more content)
+        bottom: 54,
+        left: 54,
+        right: 54
       },
       fontSize: {
         header: 10,
         name: 14,
         sectionTitle: 11,
-        jobTitle: 10,
-        body: 10,
+        jobTitle: 10.5,  // Slightly larger for job titles
+        body: 10.5,      // 10.5pt as specified
         small: 9
       },
-      lineHeight: 1.4,
-      font: 'helvetica'
+      lineHeight: 1.15,  // 1.15 as specified (was 1.4)
+      font: 'helvetica'  // Arial equivalent in jsPDF
     },
 
     // A4 dimensions in points
@@ -264,28 +265,31 @@
 
     /**
      * Clean section content based on section type
+     * For SKILLS: return as SINGLE comma-separated line (recruiter spec)
      */
     cleanSectionContent(content, sectionTitle) {
       const upperTitle = (sectionTitle || '').toUpperCase();
       
-      if (upperTitle.includes('SKILL')) {
-        // For skills section, filter out soft skills and format properly
-        return content.map(lineData => {
+      if (upperTitle.includes('SKILL') || upperTitle.includes('COMPETENC')) {
+        // Collect ALL skills into one comma-separated line
+        const allSkills = [];
+        content.forEach(lineData => {
           const text = typeof lineData === 'object' ? lineData.text : lineData;
-          // Remove soft skills from comma-separated lists
-          const words = text.split(/[,•\-]/);
-          const cleanWords = words
-            .map(w => w.trim())
-            .filter(w => w && !this.EXCLUDED_SOFT_SKILLS.has(w.toLowerCase()));
-          
-          if (cleanWords.length > 0) {
-            const cleanText = cleanWords.join(', ');
-            return typeof lineData === 'object' 
-              ? { ...lineData, text: cleanText }
-              : cleanText;
-          }
-          return null;
-        }).filter(Boolean);
+          // Split by comma, dash, bullet, pipe
+          const words = text.split(/[,•\-|]/);
+          words.forEach(w => {
+            const clean = w.trim();
+            if (clean && !this.EXCLUDED_SOFT_SKILLS.has(clean.toLowerCase()) && clean.length > 1) {
+              allSkills.push(clean);
+            }
+          });
+        });
+        
+        if (allSkills.length > 0) {
+          // Return as single line, comma-separated (recruiter spec)
+          return [{ text: allSkills.join(', '), isBullet: false }];
+        }
+        return [];
       }
       
       return content;
