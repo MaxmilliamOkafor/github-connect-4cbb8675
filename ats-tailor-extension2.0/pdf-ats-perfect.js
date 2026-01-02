@@ -144,11 +144,15 @@
       const sections = [];
       const sectionHeaders = [
         'PROFESSIONAL SUMMARY',
+        'SUMMARY',
+        'PROFILE',
         'EXPERIENCE',
         'WORK EXPERIENCE',
+        'PROFESSIONAL EXPERIENCE',
         'EDUCATION',
         'SKILLS',
         'TECHNICAL SKILLS',
+        'CORE COMPETENCIES',
         'CERTIFICATIONS',
         'ACHIEVEMENTS',
         'PROJECTS',
@@ -162,10 +166,14 @@
         const trimmedLine = line.trim();
         const upperLine = trimmedLine.toUpperCase();
 
-        // Check if this is a section header
-        const isHeader = sectionHeaders.some(header => 
-          upperLine === header || upperLine.startsWith(header + ':')
-        );
+        // Check if this is a section header - must match EXACTLY (not part of a longer line)
+        const isHeader = sectionHeaders.some(header => {
+          // Exact match or header with colon
+          if (upperLine === header || upperLine === header + ':') return true;
+          // Allow slight variations but NOT content after header
+          if (upperLine.replace(/[:\s]+$/, '') === header) return true;
+          return false;
+        });
 
         if (isHeader) {
           // Save previous section if it has content
@@ -174,14 +182,25 @@
             currentSection.content = this.cleanSectionContent(currentSection.content, currentSection.title);
             sections.push(currentSection);
           }
-          currentSection = { title: trimmedLine, content: [] };
+          // Extract only the header part, not any trailing content
+          const headerMatch = sectionHeaders.find(h => upperLine.startsWith(h));
+          currentSection = { title: headerMatch || trimmedLine.toUpperCase().replace(/[:\s]+$/, ''), content: [] };
         } else if (trimmedLine) {
           // Convert bullets to dashes for ATS compatibility
           let cleanLine = trimmedLine
             .replace(/^[•●○◦▪▸►]\s*/, '- ') // Convert fancy bullets to dash
             .replace(/^[*]\s*/, '- '); // Convert asterisks to dash
           
-          currentSection.content.push(cleanLine);
+          // Add line metadata for formatting
+          const lineData = {
+            text: cleanLine,
+            isJobTitle: this.isJobTitle(cleanLine, currentSection.title),
+            isCompany: this.isCompanyName(cleanLine, currentSection.title),
+            isDateLocation: this.isDateLocationLine(cleanLine),
+            isBullet: cleanLine.startsWith('-')
+          };
+          
+          currentSection.content.push(lineData);
         }
       }
 
@@ -195,6 +214,55 @@
     },
 
     /**
+     * Check if a line is a job title
+     */
+    isJobTitle(line, sectionTitle) {
+      const upper = (sectionTitle || '').toUpperCase();
+      if (!upper.includes('EXPERIENCE')) return false;
+      
+      // Job titles typically: start with Senior/Lead/Junior, contain Engineer/Manager/Developer, etc.
+      const jobTitlePatterns = [
+        /^(senior|lead|junior|principal|staff|chief|head|vp|director)/i,
+        /(engineer|developer|architect|manager|analyst|designer|consultant|specialist)/i,
+        /^(ai|ml|data|software|product|project|program)/i
+      ];
+      
+      // Not a date line or company
+      if (this.isDateLocationLine(line)) return false;
+      if (line.startsWith('-')) return false;
+      
+      return jobTitlePatterns.some(p => p.test(line));
+    },
+
+    /**
+     * Check if a line is a company name
+     */
+    isCompanyName(line, sectionTitle) {
+      const upper = (sectionTitle || '').toUpperCase();
+      if (!upper.includes('EXPERIENCE')) return false;
+      
+      // Company names are typically short, no bullets, not dates
+      if (line.startsWith('-')) return false;
+      if (this.isDateLocationLine(line)) return false;
+      if (this.isJobTitle(line, sectionTitle)) return false;
+      
+      // Short lines that could be company names
+      if (line.length < 50 && !line.includes('-') && !line.match(/^\d/)) {
+        return true;
+      }
+      return false;
+    },
+
+    /**
+     * Check if a line contains date/location info
+     */
+    isDateLocationLine(line) {
+      // Matches: "2023-01 - Present", "Jan 2023 - Dec 2024", "London, UK", etc.
+      return /\d{4}|\bpresent\b|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec/i.test(line) &&
+             (line.includes('-') || line.includes('|') || /,\s*[A-Z]/.test(line));
+    },
+
+    /**
      * Clean section content based on section type
      */
     cleanSectionContent(content, sectionTitle) {
@@ -202,15 +270,19 @@
       
       if (upperTitle.includes('SKILL')) {
         // For skills section, filter out soft skills and format properly
-        return content.map(line => {
+        return content.map(lineData => {
+          const text = typeof lineData === 'object' ? lineData.text : lineData;
           // Remove soft skills from comma-separated lists
-          const words = line.split(/[,•\-]/);
+          const words = text.split(/[,•\-]/);
           const cleanWords = words
             .map(w => w.trim())
             .filter(w => w && !this.EXCLUDED_SOFT_SKILLS.has(w.toLowerCase()));
           
           if (cleanWords.length > 0) {
-            return cleanWords.join(', ');
+            const cleanText = cleanWords.join(', ');
+            return typeof lineData === 'object' 
+              ? { ...lineData, text: cleanText }
+              : cleanText;
           }
           return null;
         }).filter(Boolean);
@@ -288,35 +360,55 @@
           yPos = margins.top;
         }
 
-        // Section title
+        // Section title - ONLY the section header, bold
         if (section.title) {
           doc.setFontSize(fontSize.sectionTitle);
           doc.setFont(font, 'bold');
           doc.text(section.title.toUpperCase(), margins.left, yPos);
-          yPos += fontSize.sectionTitle + 5;
+          yPos += fontSize.sectionTitle + 4;
 
           // Underline
           doc.setDrawColor(0);
           doc.setLineWidth(0.5);
-          doc.line(margins.left, yPos - 3, pageWidth - margins.right, yPos - 3);
-          yPos += 8;
+          doc.line(margins.left, yPos - 2, pageWidth - margins.right, yPos - 2);
+          yPos += 10; // Space after underline before content
         }
 
         // Section content
         doc.setFontSize(fontSize.body);
-        doc.setFont(font, 'normal');
 
-        for (const line of section.content) {
+        for (const lineData of section.content) {
+          // Handle both old string format and new object format
+          const isObject = typeof lineData === 'object' && lineData !== null;
+          const text = isObject ? lineData.text : lineData;
+          const isJobTitle = isObject ? lineData.isJobTitle : false;
+          const isCompany = isObject ? lineData.isCompany : false;
+          const isDateLocation = isObject ? lineData.isDateLocation : false;
+          const isBullet = isObject ? lineData.isBullet : (text.startsWith('-') || text.startsWith('•'));
+
           // Check for page break
           if (yPos > this.PAGE.height - margins.bottom - 20) {
             doc.addPage();
             yPos = margins.top;
           }
 
-          // Handle bullet points
-          const isBullet = line.startsWith('•') || line.startsWith('-') || line.startsWith('*');
+          // Set font style based on line type
+          if (isJobTitle) {
+            doc.setFont(font, 'bold');
+            doc.setFontSize(fontSize.jobTitle);
+          } else if (isCompany) {
+            doc.setFont(font, 'bold');
+            doc.setFontSize(fontSize.body);
+          } else if (isDateLocation) {
+            doc.setFont(font, 'italic');
+            doc.setFontSize(fontSize.small);
+          } else {
+            doc.setFont(font, 'normal');
+            doc.setFontSize(fontSize.body);
+          }
+
+          // Calculate indent for bullets
           const indent = isBullet ? 15 : 0;
-          const text = isBullet ? line : line;
 
           // Wrap text to fit content width
           const wrappedLines = doc.splitTextToSize(text, contentWidth - indent);
@@ -325,12 +417,19 @@
               doc.addPage();
               yPos = margins.top;
             }
-            doc.text(wLine, margins.left + (idx === 0 ? indent : indent), yPos);
+            doc.text(wLine, margins.left + indent, yPos);
             yPos += fontSize.body * this.CONFIG.lineHeight;
           });
+
+          // Add extra spacing after job title or before new role
+          if (isJobTitle) {
+            yPos += 2;
+          } else if (isDateLocation) {
+            yPos += 4; // More space after date/location before bullets
+          }
         }
 
-        yPos += 10; // Section spacing
+        yPos += 12; // Section spacing
       }
 
       // Generate filename: {FirstName}_{LastName}_CV.pdf
