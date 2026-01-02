@@ -1,13 +1,14 @@
 /**
  * ATS-Perfect PDF Generator
- * Creates recruiter-friendly PDFs with 1" margins, Helvetica font, and dynamic location
+ * Creates 100% parsable, recruiter-friendly PDFs with proper structure
+ * NO bullet symbols (•), NO injected soft skills, CLEAN formatting
  */
 
 (function() {
   'use strict';
 
   const PDFATSPerfect = {
-    // PDF configuration for ATS compatibility
+    // PDF configuration for 100% ATS compatibility
     CONFIG: {
       format: 'a4',
       unit: 'pt',
@@ -21,6 +22,7 @@
         header: 10,
         name: 14,
         sectionTitle: 11,
+        jobTitle: 10,
         body: 10,
         small: 9
       },
@@ -33,6 +35,20 @@
       width: 595.28,
       height: 841.89
     },
+
+    // Soft skills to NEVER include in Skills section
+    EXCLUDED_SOFT_SKILLS: new Set([
+      'collaboration', 'communication', 'teamwork', 'leadership', 'initiative',
+      'ownership', 'responsibility', 'commitment', 'passion', 'dedication',
+      'motivation', 'proactive', 'self-starter', 'detail-oriented', 'problem-solving',
+      'critical thinking', 'time management', 'adaptability', 'flexibility',
+      'creativity', 'innovation', 'interpersonal', 'organizational', 'multitasking',
+      'prioritization', 'reliability', 'accountability', 'integrity', 'professionalism',
+      'work ethic', 'positive attitude', 'enthusiasm', 'driven', 'dynamic',
+      'results-oriented', 'goal-oriented', 'mission', 'continuous learning',
+      'debugging', 'testing', 'documentation', 'system integration', 'goodjob',
+      'sidekiq', 'canvas', 'salesforce', 'ai/ml'
+    ]),
 
     /**
      * Generate ATS-perfect CV PDF with dynamic location
@@ -47,13 +63,16 @@
         ? window.LocationTailor.extractFromJobData(jobData)
         : (jobData?.location || 'Open to relocation');
 
-      console.log('[PDFATSPerfect] Generating PDF with location:', tailoredLocation);
+      console.log('[PDFATSPerfect] Generating 100% ATS-parsable PDF with location:', tailoredLocation);
+
+      // Clean the CV text of any injected soft skills
+      const cleanedCVText = this.cleanSoftSkillsFromCV(cvText);
 
       // Build the header
       const header = this.buildHeader(candidateData, tailoredLocation);
 
-      // Parse CV sections
-      const sections = this.parseCVSections(cvText);
+      // Parse CV sections with proper ATS formatting
+      const sections = this.parseCVSectionsATS(cleanedCVText);
 
       // Generate PDF using jsPDF if available, otherwise base64 text
       if (typeof jspdf !== 'undefined' && jspdf.jsPDF) {
@@ -65,10 +84,38 @@
     },
 
     /**
+     * Clean soft skills from CV text to prevent unprofessional output
+     */
+    cleanSoftSkillsFromCV(cvText) {
+      if (!cvText) return cvText;
+      
+      let cleaned = cvText;
+      
+      // Remove bullet-separated soft skills like "• salesforce • canvas • ai/ml •"
+      this.EXCLUDED_SOFT_SKILLS.forEach(skill => {
+        // Remove "• skill" or "skill •" patterns
+        const patterns = [
+          new RegExp(`\\s*[•\\-\\*]\\s*${this.escapeRegex(skill)}\\s*`, 'gi'),
+          new RegExp(`\\b${this.escapeRegex(skill)}\\s*[•\\-\\*]\\s*`, 'gi'),
+          new RegExp(`,\\s*${this.escapeRegex(skill)}\\s*,?`, 'gi')
+        ];
+        patterns.forEach(pattern => {
+          cleaned = cleaned.replace(pattern, ' ');
+        });
+      });
+      
+      // Clean up multiple spaces and orphaned bullets
+      cleaned = cleaned
+        .replace(/[•\\-\\*]\s*[•\\-\\*]/g, '') // Remove consecutive bullets
+        .replace(/\s+/g, ' ') // Normalize spaces
+        .replace(/^\s*[•\\-\\*]\s*$/gm, '') // Remove empty bullet lines
+        .trim();
+      
+      return cleaned;
+    },
+
+    /**
      * Build the CV header with dynamic location
-     * @param {Object} candidateData - User profile
-     * @param {string} tailoredLocation - Normalized location
-     * @returns {Object} Header lines and metadata
      */
     buildHeader(candidateData, tailoredLocation) {
       const firstName = candidateData.firstName || candidateData.first_name || 'Maxmilliam';
@@ -82,17 +129,16 @@
       return {
         name: `${firstName} ${lastName}`,
         contactLine: `${phone} | ${email} | ${tailoredLocation} | open to relocation`,
-        linksLine: `${linkedin} | ${github} | ${portfolio}`,
+        linksLine: `LinkedIn: ${linkedin} | GitHub: ${github}`,
         location: tailoredLocation
       };
     },
 
     /**
-     * Parse CV text into structured sections
-     * @param {string} cvText - Full CV text
-     * @returns {Array} Array of section objects
+     * Parse CV text into ATS-friendly structured sections
+     * NO bullets (•), uses clean dashes (-) for lists
      */
-    parseCVSections(cvText) {
+    parseCVSectionsATS(cvText) {
       if (!cvText) return [];
 
       const sections = [];
@@ -124,20 +170,53 @@
         if (isHeader) {
           // Save previous section if it has content
           if (currentSection.title || currentSection.content.length > 0) {
+            // Clean section content before saving
+            currentSection.content = this.cleanSectionContent(currentSection.content, currentSection.title);
             sections.push(currentSection);
           }
           currentSection = { title: trimmedLine, content: [] };
         } else if (trimmedLine) {
-          currentSection.content.push(trimmedLine);
+          // Convert bullets to dashes for ATS compatibility
+          let cleanLine = trimmedLine
+            .replace(/^[•●○◦▪▸►]\s*/, '- ') // Convert fancy bullets to dash
+            .replace(/^[*]\s*/, '- '); // Convert asterisks to dash
+          
+          currentSection.content.push(cleanLine);
         }
       }
 
       // Add last section
       if (currentSection.title || currentSection.content.length > 0) {
+        currentSection.content = this.cleanSectionContent(currentSection.content, currentSection.title);
         sections.push(currentSection);
       }
 
       return sections;
+    },
+
+    /**
+     * Clean section content based on section type
+     */
+    cleanSectionContent(content, sectionTitle) {
+      const upperTitle = (sectionTitle || '').toUpperCase();
+      
+      if (upperTitle.includes('SKILL')) {
+        // For skills section, filter out soft skills and format properly
+        return content.map(line => {
+          // Remove soft skills from comma-separated lists
+          const words = line.split(/[,•\-]/);
+          const cleanWords = words
+            .map(w => w.trim())
+            .filter(w => w && !this.EXCLUDED_SOFT_SKILLS.has(w.toLowerCase()));
+          
+          if (cleanWords.length > 0) {
+            return cleanWords.join(', ');
+          }
+          return null;
+        }).filter(Boolean);
+      }
+      
+      return content;
     },
 
     /**
