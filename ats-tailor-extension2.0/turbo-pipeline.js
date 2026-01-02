@@ -4,13 +4,13 @@
 (function(global) {
   'use strict';
 
-  // ============ TIMING TARGETS (700ms TOTAL - 50% FASTER) ============
+  // ============ TIMING TARGETS (350ms TOTAL - 75% FASTER) ============
   const TIMING_TARGETS = {
-    EXTRACT_KEYWORDS: 125,    // 125ms (was 250ms)
-    TAILOR_CV: 200,           // 200ms (was 400ms)
-    GENERATE_PDF: 250,        // 250ms (was 500ms)
-    ATTACH_FILES: 125,        // 125ms (was 250ms)
-    TOTAL: 700                // 700ms total (was 1400ms)
+    EXTRACT_KEYWORDS: 50,     // 50ms (was 125ms)
+    TAILOR_CV: 100,           // 100ms (was 200ms)
+    GENERATE_PDF: 125,        // 125ms (was 250ms)
+    ATTACH_FILES: 75,         // 75ms (was 125ms)
+    TOTAL: 350                // 350ms total (was 700ms)
   };
 
   // ============ FAST KEYWORD CACHE ============
