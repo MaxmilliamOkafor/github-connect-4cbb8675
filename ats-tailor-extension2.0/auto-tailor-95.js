@@ -46,24 +46,32 @@
       this.onScoreUpdate(initialMatch.score, 'initial');
       this.onChipsUpdate(keywords, baseCV, 'initial');
 
-      // Short delay to show initial state - 50% faster
-      await this.delay(150); // Reduced from 300ms for 50% speed boost
+      // Short delay to show initial state - ULTRA FAST
+      await this.delay(50); // Reduced from 150ms for maximum speed
 
-      // Step 3: Auto-tailor CV to inject missing keywords
-      this.onProgress(50, 'Tailoring CV for ATS optimization...');
-      const tailorResult = await this.tailorCVForTarget(baseCV, keywords, initialMatch);
+      // Step 3: Auto-tailor CV to inject missing keywords - USE TURBO PIPELINE
+      this.onProgress(50, 'Boosting CV to 95-100% match...');
+      
+      // Use TurboPipeline for 50% faster tailoring
+      let tailorResult;
+      if (global.TurboPipeline) {
+        tailorResult = await global.TurboPipeline.turboTailorCV(baseCV, keywords);
+      } else {
+        tailorResult = await this.tailorCVForTarget(baseCV, keywords, initialMatch);
+      }
       
       // Step 4: Recalculate with tailored CV (should be 95%+)
-      this.onProgress(75, 'Recalculating match score...');
+      this.onProgress(85, 'Finalizing...');
       const finalMatch = this.calculateFinalMatch(tailorResult.tailoredCV, keywords);
       
-      // Animate score update - 50% faster
+      // Animate score update - ULTRA FAST
       if (global.DynamicScore) {
         global.DynamicScore.animateScore(
           initialMatch.score, 
           finalMatch.score, 
           (score) => this.onScoreUpdate(score, 'animating'),
-          400 // Faster animation (was 800ms)
+          200 // Ultra fast animation (was 400ms)
+        );
       } else {
         this.onScoreUpdate(finalMatch.score, 'final');
       }

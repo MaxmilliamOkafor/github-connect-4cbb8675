@@ -94,66 +94,89 @@
     },
 
     // ============ REMOVE EXISTING ATTACHED FILES (CLICK X BUTTONS) ============
+    // CRITICAL FIX: More aggressive removal - finds .pdf/.doc file pills and clicks X
     removeExistingAttachedFiles() {
       let removed = 0;
       
-      // Strategy 1: Click remove/delete buttons near file inputs
-      const removeButtons = document.querySelectorAll(
-        'button[aria-label*="remove" i], button[aria-label*="delete" i], ' +
-        'button[class*="remove" i], button[class*="delete" i], ' +
-        'button[class*="close" i], [role="button"][class*="remove" i], ' +
-        'span[class*="remove" i], span[class*="delete" i], ' +
-        '.remove-file, .delete-file, .file-remove, .file-delete, ' +
-        '[data-automation-id*="remove"], [data-automation-id*="delete"], ' +
-        'a[class*="remove" i], a[class*="delete" i], ' +
-        'svg[class*="remove" i], svg[class*="close" i]'
-      );
+      // Strategy 1: Find ALL elements with file extensions (.pdf, .doc) and click their X button
+      const allElements = document.querySelectorAll('*');
+      const fileNamePattern = /\.(pdf|doc|docx|txt)(\s|$)/i;
       
-      removeButtons.forEach(btn => {
-        // Check if near a file input or file display
-        const parent = btn.closest('[class*="file" i]') || 
-                       btn.closest('[class*="upload" i]') ||
-                       btn.closest('[class*="attachment" i]') ||
-                       btn.closest('[data-automation-id*="file"]') ||
-                       btn.parentElement;
-        
-        if (parent) {
-          try {
-            btn.click();
-            console.log('[FileAttacher] 🗑️ Clicked remove button to clear existing file');
-            removed++;
-          } catch (e) {
-            // Try parent element click
-            try { parent.click(); } catch {}
+      allElements.forEach(el => {
+        const text = el.textContent?.trim() || '';
+        // Only target elements that look like file names (short text with extension)
+        if (text.length < 100 && fileNamePattern.test(text)) {
+          // Find any clickable X/remove button within or near this element
+          const xButtons = [
+            ...el.querySelectorAll('button, [role="button"], svg, span, a'),
+            el.querySelector('[class*="remove"]'),
+            el.querySelector('[class*="delete"]'),
+            el.querySelector('[class*="close"]'),
+            el.parentElement?.querySelector('button'),
+            el.parentElement?.querySelector('[role="button"]'),
+            el.nextElementSibling
+          ].filter(Boolean);
+          
+          for (const btn of xButtons) {
+            const btnText = btn.textContent?.trim() || '';
+            const ariaLabel = btn.getAttribute('aria-label') || '';
+            const className = btn.className || '';
+            
+            // Check if it's an X button
+            if (btnText === '×' || btnText === 'x' || btnText === '✕' || btnText === 'X' ||
+                ariaLabel.toLowerCase().includes('remove') ||
+                ariaLabel.toLowerCase().includes('delete') ||
+                ariaLabel.toLowerCase().includes('close') ||
+                className.toLowerCase().includes('remove') ||
+                className.toLowerCase().includes('delete') ||
+                className.toLowerCase().includes('close') ||
+                btn.tagName === 'SVG') {
+              try {
+                btn.click();
+                console.log(`[FileAttacher] 🗑️ Removed file: ${text}`);
+                removed++;
+                // Wait a tiny bit for UI to update
+                break;
+              } catch (e) {}
+            }
           }
         }
       });
 
-      // Strategy 2: Find X icons near file displays (common pattern)
-      const xIcons = document.querySelectorAll(
-        '[class*="file" i] button, [class*="file" i] [role="button"], ' +
-        '[class*="attachment" i] button, [class*="attachment" i] [role="button"], ' +
-        '.file-pill button, .file-chip button, .file-tag button'
-      );
-      
-      xIcons.forEach(icon => {
-        const iconText = (icon.textContent || '').toLowerCase().trim();
-        const ariaLabel = (icon.getAttribute('aria-label') || '').toLowerCase();
-        
-        // Look for X, ×, or remove indicators
-        if (iconText === 'x' || iconText === '×' || iconText === '✕' || 
-            iconText === 'remove' || iconText === 'delete' ||
-            ariaLabel.includes('remove') || ariaLabel.includes('delete') ||
-            ariaLabel.includes('close')) {
+      // Strategy 2: Workday/common ATS specific - target data-automation-id
+      document.querySelectorAll('[data-automation-id*="file"], [data-automation-id*="upload"], [data-automation-id*="attachment"]').forEach(container => {
+        const removeBtn = container.querySelector('button, [role="button"]');
+        if (removeBtn) {
           try {
-            icon.click();
-            console.log('[FileAttacher] 🗑️ Clicked X icon to clear existing file');
+            removeBtn.click();
+            console.log('[FileAttacher] 🗑️ Clicked Workday remove button');
             removed++;
-          } catch {}
+          } catch (e) {}
         }
       });
 
-      // Strategy 3: Clear file inputs directly that have files
+      // Strategy 3: Look for × character directly as button/clickable text
+      document.querySelectorAll('button, [role="button"], span, a').forEach(el => {
+        const text = el.textContent?.trim();
+        if (text === '×' || text === 'x' || text === '✕' || text === 'X') {
+          // Make sure it's near a file-related element
+          const parent = el.closest('[class*="file" i]') || 
+                         el.closest('[class*="upload" i]') ||
+                         el.closest('[class*="attachment" i]') ||
+                         el.parentElement;
+          const parentText = parent?.textContent || '';
+          
+          if (fileNamePattern.test(parentText) || parentText.includes('CV') || parentText.includes('Resume')) {
+            try {
+              el.click();
+              console.log('[FileAttacher] 🗑️ Clicked × to remove attached file');
+              removed++;
+            } catch (e) {}
+          }
+        }
+      });
+
+      // Strategy 4: Clear file inputs directly that have files
       document.querySelectorAll('input[type="file"]').forEach(input => {
         if (input.files && input.files.length > 0) {
           try {
@@ -163,21 +186,6 @@
             console.log('[FileAttacher] 🗑️ Cleared file input directly');
             removed++;
           } catch {}
-        }
-      });
-
-      // Strategy 4: Look for pill/chip elements with file names and X buttons
-      document.querySelectorAll('[class*="pill" i], [class*="chip" i], [class*="tag" i]').forEach(el => {
-        const text = (el.textContent || '').toLowerCase();
-        if (text.includes('.pdf') || text.includes('.doc') || text.includes('resume') || text.includes('cv')) {
-          const xBtn = el.querySelector('button, [role="button"], svg, span');
-          if (xBtn) {
-            try {
-              xBtn.click();
-              console.log('[FileAttacher] 🗑️ Removed file pill/chip');
-              removed++;
-            } catch {}
-          }
         }
       });
 
