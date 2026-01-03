@@ -1,0 +1,24 @@
+/* ATS Tailor - Content Script Styles */
+
+/* Minimal injection - most styles are inline in the banner for isolation */
+
+#ats-tailor-notification {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+}
+
+/* Prevent page styles from affecting our banner */
+#ats-auto-banner,
+#ats-auto-banner * {
+  box-sizing: border-box !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif !important;
+}
+
+/* Push page content down when banner is visible */
+body:has(#ats-auto-banner) {
+  padding-top: 44px !important;
+}
+
+/* Fallback for browsers without :has() support */
+.ats-banner-active {
+  padding-top: 44px !important;
+}

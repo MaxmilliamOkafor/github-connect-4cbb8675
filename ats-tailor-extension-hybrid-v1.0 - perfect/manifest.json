@@ -1,0 +1,104 @@
+{
+  "manifest_version": 3,
+  "name": "ATS Tailor HYBRID v1.4 - OpenResume ATS + Cover Letter Generator",
+  "version": "1.4.0",
+  "description": "HYBRID v1.4: OpenResume-style ATS CV + Cover Letter generator. 100% ATS parsing. Arial 10.5pt, 1\" margins. Auto-generates {FirstName}_{LastName}_ATS_CV.pdf + Cover_Letter.pdf with 3-5x keyword distribution. Supports Greenhouse, Workday, SmartRecruiters, Bullhorn.",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.greenhouse.io/*",
+    "https://*.workday.com/*",
+    "https://*.myworkdayjobs.com/*",
+    "https://*.smartrecruiters.com/*",
+    "https://*.bullhornstaffing.com/*",
+    "https://*.bullhorn.com/*",
+    "https://*.teamtailor.com/*",
+    "https://*.workable.com/*",
+    "https://*.icims.com/*",
+    "https://*.oracle.com/*",
+    "https://*.oraclecloud.com/*",
+    "https://*.taleo.net/*",
+    "https://wntpldomgjutwufphnpg.supabase.co/*"
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.greenhouse.io/*",
+        "https://*.workday.com/*",
+        "https://*.myworkdayjobs.com/*",
+        "https://*.smartrecruiters.com/*",
+        "https://*.bullhornstaffing.com/*",
+        "https://*.bullhorn.com/*",
+        "https://*.teamtailor.com/*",
+        "https://*.workable.com/*",
+        "https://*.icims.com/*",
+        "https://*.oracle.com/*",
+        "https://*.oraclecloud.com/*",
+        "https://*.taleo.net/*"
+      ],
+      "js": [
+        "mandatory-keywords.js",
+        "universal-jd-parser.js",
+        "reliable-extractor.js",
+        "universal-keyword-strategy.js",
+        "unique-cv-engine.js",
+        "tailor-universal.js",
+        "validation-engine.js",
+        "dynamic-score.js",
+        "openresume-generator.js",
+        "turbo-pipeline.js",
+        "pdf-ats-turbo.js",
+        "file-attacher-turbo.js",
+        "resume-builder.js",
+        "content.js"
+      ],
+      "css": ["content.css"],
+      "run_at": "document_end"
+    }
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": [
+        "icons/*.png",
+        "content.css",
+        "bulk-apply.html",
+        "bulk-apply.css",
+        "bulk-apply.js",
+        "mandatory-keywords.js",
+        "universal-jd-parser.js",
+        "reliable-extractor.js",
+        "universal-keyword-strategy.js",
+        "unique-cv-engine.js",
+        "tailor-universal.js",
+        "validation-engine.js",
+        "dynamic-score.js",
+        "openresume-generator.js",
+        "turbo-pipeline.js",
+        "pdf-ats-turbo.js",
+        "file-attacher-turbo.js",
+        "resume-builder.js"
+      ],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}
