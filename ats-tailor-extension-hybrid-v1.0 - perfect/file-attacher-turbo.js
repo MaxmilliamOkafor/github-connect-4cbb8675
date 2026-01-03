@@ -423,21 +423,35 @@
       const cvFile = cvPdf ? this.createPDFFile(cvPdf, cvFilename || 'Tailored_CV.pdf') : null;
       const coverFile = coverPdf ? this.createPDFFile(coverPdf, coverFilename || 'Tailored_Cover_Letter.pdf') : null;
 
-      // Reveal hidden inputs first
+      // STEP 1: Reveal hidden inputs first
       this.revealHiddenInputs();
 
-      // Kill X buttons
+      // STEP 2: Kill X buttons to remove existing files
       this.killXButtons();
+      
+      // STEP 3: Wait briefly for UI to settle after clicking buttons
+      await new Promise(r => setTimeout(r, 50));
 
-      // Attach CV
+      // STEP 4: Attach CV
       let cvAttached = false;
       if (cvFile) {
         cvAttached = await this.attachToFirstMatch(cvFile, 'cv');
       }
 
-      // Attach Cover Letter
+      // STEP 5: Click Greenhouse Cover Letter Attach button BEFORE attaching cover
+      this.clickGreenhouseCoverAttach();
+      await new Promise(r => setTimeout(r, 50));
+
+      // STEP 6: Attach Cover Letter
       let coverAttached = false;
       if (coverFile || coverText) {
+        coverAttached = await this.attachToCoverField(coverFile, coverText);
+      }
+      
+      // STEP 7: Retry cover letter if not attached
+      if (!coverAttached && (coverFile || coverText)) {
+        this.clickGreenhouseCoverAttach();
+        await new Promise(r => setTimeout(r, 100));
         coverAttached = await this.attachToCoverField(coverFile, coverText);
       }
 
@@ -451,6 +465,46 @@
         timing,
         meetsTarget: timing <= this.TIMING_TARGET
       };
+    },
+    
+    // ============ ATTACH BOTH FILES TOGETHER (SINGLE CALL) ============
+    async attachBothFiles(cvFile, coverFile, coverText = null) {
+      console.log('[FileAttacher] 📎 Attaching BOTH CV + Cover Letter together');
+      
+      // STEP 1: Reveal hidden inputs
+      this.revealHiddenInputs();
+      
+      // STEP 2: Kill existing files
+      this.killXButtons();
+      
+      await new Promise(r => setTimeout(r, 50));
+      
+      // STEP 3: Attach CV first
+      let cvAttached = false;
+      if (cvFile) {
+        cvAttached = await this.attachToFirstMatch(cvFile, 'cv');
+      }
+      
+      // STEP 4: Click Cover Letter Attach button
+      this.clickGreenhouseCoverAttach();
+      await new Promise(r => setTimeout(r, 50));
+      
+      // STEP 5: Attach Cover Letter
+      let coverAttached = false;
+      if (coverFile || coverText) {
+        coverAttached = await this.attachToCoverField(coverFile, coverText);
+      }
+      
+      // STEP 6: Retry if cover not attached
+      if (!coverAttached && (coverFile || coverText)) {
+        this.clickGreenhouseCoverAttach();
+        await new Promise(r => setTimeout(r, 100));
+        coverAttached = await this.attachToCoverField(coverFile, coverText);
+      }
+      
+      console.log(`[FileAttacher] Both files: CV=${cvAttached ? '✅' : '❌'}, Cover=${coverAttached ? '✅' : '❌'}`);
+      
+      return { cvAttached, coverAttached };
     },
 
     // ============ CONTINUOUS MONITORING (LAZYAPPLY PROTECTION) ============
