@@ -299,7 +299,16 @@
   }
 
   // ============ KILL X BUTTONS (4.0 PROVEN LOGIC - SCOPED) ============
-  function killXButtons() {
+  // Track if we already cleaned to prevent flickering
+  let hasKilledXButtons = false;
+  
+  function killXButtons(forceClean = false) {
+    // Only run once unless forced - prevents CV flickering
+    if (hasKilledXButtons && !forceClean) {
+      console.log('[ATS Tailor] X buttons already cleaned, skipping');
+      return;
+    }
+    
     const isNearFileInput = (el) => {
       const root = el.closest('form') || document.body;
       const candidates = [
@@ -333,10 +342,12 @@
       '.attachment-remove',
     ];
 
+    let clickedAny = false;
     document.querySelectorAll(selectors.join(', ')).forEach((btn) => {
       try {
         if (!isNearFileInput(btn)) return;
         btn.click();
+        clickedAny = true;
       } catch {}
     });
 
@@ -346,9 +357,15 @@
         try {
           if (!isNearFileInput(btn)) return;
           btn.click();
+          clickedAny = true;
         } catch {}
       }
     });
+    
+    if (clickedAny) {
+      console.log('[ATS Tailor] Cleaned existing file attachments');
+    }
+    hasKilledXButtons = true;
   }
 
   // ============ FORCE CV REPLACE (4.0 PROVEN LOGIC) ============
@@ -377,14 +394,19 @@
   }
 
   // ============ GREENHOUSE COVER LETTER ATTACH BUTTON CLICK ============
-  function clickGreenhouseCoverAttach() {
+  let coverAttachClicked = false;
+  
+  async function clickGreenhouseCoverAttach() {
+    // Only click once to prevent repeated button clicks
+    if (coverAttachClicked) return false;
+    
     // Find the Cover Letter section by label text
     const allLabels = document.querySelectorAll('label, h3, h4, span, div, fieldset');
     for (const label of allLabels) {
       const text = (label.textContent || '').trim().toLowerCase();
       if (text.includes('cover letter') && text.length < 30) {
         // Found Cover Letter label - look for "Attach" button nearby
-        const container = label.closest('fieldset') || label.closest('.field') || label.closest('section') || label.parentElement?.parentElement;
+        const container = label.closest('fieldset') || label.closest('.field') || label.closest('section') || label.parentElement?.parentElement?.parentElement;
         if (!container) continue;
         
         // Look for Attach button (first option in Greenhouse)
@@ -394,7 +416,10 @@
           if (btnText === 'attach' || btnText.includes('attach')) {
             console.log('[ATS Tailor] 📎 Clicking Greenhouse Cover Letter "Attach" button');
             try { 
-              btn.click(); 
+              btn.click();
+              coverAttachClicked = true;
+              // Wait for file input to appear
+              await sleep(150);
               return true;
             } catch (e) {
               console.warn('[ATS Tailor] Failed to click Attach button:', e);
@@ -412,10 +437,14 @@
     let attached = false;
 
     // GREENHOUSE FIX: Click "Attach" button first to reveal hidden file input
-    clickGreenhouseCoverAttach();
-    
-    // Brief wait for file input to appear after clicking Attach
-    await sleep(50);
+    await clickGreenhouseCoverAttach();
+
+    // Make hidden file inputs visible
+    document.querySelectorAll('input[type="file"]').forEach(input => {
+      if (input.offsetParent === null) {
+        input.style.cssText = 'display:block !important; visibility:visible !important; opacity:0.01 !important; position:absolute !important; pointer-events:auto !important;';
+      }
+    });
 
     if (coverFile) {
       document.querySelectorAll('input[type="file"]').forEach((input) => {
@@ -437,12 +466,13 @@
       });
     }
     
-    // If no cover field found, try clicking Attach again and retry
+    // If no cover field found, wait and retry with broader search
     if (!attached && coverFile) {
-      clickGreenhouseCoverAttach();
-      await sleep(100);
+      await sleep(200);
       
+      // Re-check for any new file inputs that appeared
       document.querySelectorAll('input[type="file"]').forEach((input) => {
+        if (attached) return;
         if (!isCoverField(input)) return;
         if (input.files && input.files.length > 0) {
           attached = true;
@@ -480,10 +510,19 @@
 
   // ============ FORCE EVERYTHING (MATCHES WORKING EXTENSION - ASYNC) ==========
   async function forceEverything() {
+    // Check if both already attached - don't re-run if so (prevents flickering)
+    if (areBothAttached()) {
+      console.log('[ATS Tailor] Both files already attached, skipping forceEverything');
+      return;
+    }
+    
     // STEP 1: Suppress file picker dialogs during automation
     suppressFilePickerClicks(450);
     
-    // STEP 2: Greenhouse specific - click attach buttons to reveal hidden inputs
+    // STEP 2: Only kill X buttons once at the very start
+    killXButtons();
+    
+    // STEP 3: Greenhouse specific - click attach buttons to reveal hidden inputs
     document.querySelectorAll('[data-qa-upload], [data-qa="upload"], [data-qa="attach"]').forEach(btn => {
       const parent = btn.closest('.field') || btn.closest('[class*="upload"]') || btn.parentElement;
       const existingInput = parent?.querySelector('input[type="file"]');
@@ -492,21 +531,18 @@
       }
     });
     
-    // STEP 3: Click Greenhouse Cover Letter Attach button BEFORE looking for inputs
-    clickGreenhouseCoverAttach();
+    // STEP 4: Click Greenhouse Cover Letter Attach button BEFORE looking for inputs
+    await clickGreenhouseCoverAttach();
     
-    // STEP 4: Make any hidden file inputs visible and accessible
+    // STEP 5: Make any hidden file inputs visible and accessible
     document.querySelectorAll('input[type="file"]').forEach(input => {
       if (input.offsetParent === null) {
-        input.style.cssText = 'display:block !important; visibility:visible !important; opacity:1 !important; position:relative !important;';
+        input.style.cssText = 'display:block !important; visibility:visible !important; opacity:0.01 !important; position:absolute !important; pointer-events:auto !important;';
       }
     });
     
-    // STEP 5: Kill existing X buttons BEFORE attaching new files
-    killXButtons();
-    
     // STEP 6: Brief wait for inputs to appear after clicking buttons
-    await sleep(50);
+    await sleep(100);
     
     // STEP 7: Attach BOTH files together (CV + Cover Letter)
     forceCVReplace();
@@ -543,28 +579,36 @@
     // Run a single cleanup once right before attaching (prevents UI flicker)
     killXButtons();
 
+    // Slower interval to prevent flickering (was 200ms, now 500ms)
     attachLoop200ms = setInterval(async () => {
       if (!filesLoaded) return;
+      
+      // Check if already attached FIRST to prevent unnecessary re-attachment
+      if (areBothAttached()) {
+        console.log('[ATS Tailor] ✅ Both CV + Cover Letter attached — stopping loops');
+        stopAttachLoops();
+        updateBanner('✅ CV + Cover Letter attached!', 'success');
+        return;
+      }
+      
       forceCVReplace();
       await forceCoverReplace();
+    }, 500);
 
-      if (areBothAttached()) {
-        console.log('[ATS Tailor] ✅ Both CV + Cover Letter attached — stopping loops');
-        stopAttachLoops();
-        updateBanner('✅ CV + Cover Letter attached!', 'success');
-      }
-    }, 200);
-
+    // Slower backup loop (was 1000ms, now 2000ms)
     attachLoop1s = setInterval(async () => {
       if (!filesLoaded) return;
-      await forceEverything();
-
+      
+      // Check if already attached FIRST
       if (areBothAttached()) {
         console.log('[ATS Tailor] ✅ Both CV + Cover Letter attached — stopping loops');
         stopAttachLoops();
         updateBanner('✅ CV + Cover Letter attached!', 'success');
+        return;
       }
-    }, 1000);
+      
+      await forceEverything();
+    }, 2000);
   }
 
   // ============ EXTRACT JOB INFO ============
