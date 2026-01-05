@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ATS Tailored CV & Cover Letter</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header class="header">
+      <div class="logo">
+        <img src="icons/icon48.png" alt="ATS Tailor" class="logo-icon">
+        <div class="logo-text">
+          <h1>ATS Tailor</h1>
+          <span class="tagline">OpenResume ATS CV + Cover Letter</span>
+        </div>
+      </div>
+      <div class="status-indicator" id="statusIndicator">
+        <span class="status-dot"></span>
+        <span class="status-text">Ready</span>
+      </div>
+    </header>
+
+    <!-- Login Section -->
+    <section id="loginSection" class="section hidden">
+      <div class="login-card">
+        <h2>🔐 Sign In</h2>
+        <p class="login-subtitle">Use your QuantumHire account</p>
+        <div class="input-group">
+          <label for="email">Email</label>
+          <input type="email" id="email" placeholder="your@email.com" autocomplete="email">
+        </div>
+        <div class="input-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" placeholder="Password" autocomplete="current-password">
+        </div>
+        <button id="loginBtn" class="btn btn-primary btn-large">Sign In</button>
+      </div>
+    </section>
+
+    <!-- Main Section -->
+    <section id="mainSection" class="section hidden">
+      <!-- User Info -->
+      <div class="user-bar">
+        <span id="userEmail" class="user-email"></span>
+        <button id="logoutBtn" class="btn-link">Logout</button>
+      </div>
+
+      <!-- Settings -->
+      <div class="mini-settings" aria-label="ATS Tailor settings">
+        <label class="toggle-row" for="autoTailorToggle">
+          <span class="toggle-label">Automatic ATS tailor</span>
+          <input type="checkbox" id="autoTailorToggle" />
+        </label>
+        <p class="toggle-help">Runs once per job only when upload fields are detected.</p>
+        
+        <!-- Default Location Setting for Remote Jobs -->
+        <div class="location-setting">
+          <label for="defaultLocationInput" class="setting-label">
+            <span class="setting-icon">📍</span>
+            Default Location (for Remote jobs)
+          </label>
+          <div class="location-input-wrapper">
+            <input type="text" id="defaultLocationInput" class="location-input" placeholder="e.g., Dublin, Ireland" value="Dublin, IE">
+            <button id="saveLocationBtn" class="btn btn-small btn-save-location" title="Save location">💾</button>
+          </div>
+          <p class="setting-help">Used when job is Remote-only or location unavailable.</p>
+        </div>
+      </div>
+
+      <!-- Job Detection -->
+      <div class="job-card" id="jobCard">
+        <div class="job-header">
+          <span class="job-label">Detected Job</span>
+          <button id="refreshJob" class="btn-icon" title="Refresh">🔄</button>
+        </div>
+        <h3 id="jobTitle" class="job-title">Scanning page...</h3>
+        <p id="jobCompany" class="job-company"></p>
+        <p id="jobLocation" class="job-location"></p>
+        <span id="noJobBadge" class="no-job-badge hidden">No job detected</span>
+      </div>
+
+      <!-- Tailor Actions -->
+      <div class="actions-card">
+        <button id="tailorBtn" class="btn btn-primary btn-large">
+          <span class="btn-icon-left">⚡</span>
+          <span class="btn-text">Extract & Apply Keywords to CV</span>
+          <span class="btn-time">~5s</span>
+        </button>
+        
+        <div class="progress-container hidden" id="progressContainer">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <p class="progress-text" id="progressText">Initializing...</p>
+          
+          <!-- Step-by-step progress -->
+          <div class="pipeline-steps" id="pipelineSteps">
+            <div class="pipeline-step" id="step1">
+              <span class="step-icon">⏳</span>
+              <span class="step-text">Step 1/3: Extracting keywords from job description...</span>
+            </div>
+            <div class="pipeline-step" id="step2">
+              <span class="step-icon">⏳</span>
+              <span class="step-text">Step 2/3: Boosting CV to 95-100% match...</span>
+            </div>
+            <div class="pipeline-step" id="step3">
+              <span class="step-icon">⏳</span>
+              <span class="step-text">Step 3/3: Generating ATS CV & Cover Letter...</span>
+            </div>
+          </div>
+        </div>
+        
+        <!-- Keyword Extraction Section -->
+        <div class="boost-section" id="boostSection">
+          <div class="keyword-buttons">
+            <button id="viewKeywordsBtn" class="btn btn-secondary btn-boost" title="Fast local keyword extraction">
+              <span class="btn-icon">🔍</span>
+              <span class="btn-text">Quick Extract</span>
+            </button>
+            <button id="aiExtractBtn" class="btn btn-accent btn-boost" title="AI-powered keyword extraction using GPT-4o-mini">
+              <span class="btn-icon">🤖</span>
+              <span class="btn-text">AI Extract Keywords</span>
+            </button>
+          </div>
+          <p class="boost-description">Extract keywords from job description for ATS optimization</p>
+          
+          <!-- Skill Gap Analysis -->
+          <button id="skillGapBtn" class="btn btn-outline btn-skill-gap" title="Compare keywords across job postings to identify skill gaps">
+            <span class="btn-icon">📊</span>
+            <span class="btn-text">Skill Gap Analysis</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Skill Gap Results Panel (hidden by default) -->
+      <div class="skill-gap-panel hidden" id="skillGapPanel">
+        <div class="skill-gap-header">
+          <span class="panel-icon">📊</span>
+          <span class="panel-title">Skill Gap Analysis</span>
+          <button id="closeSkillGap" class="btn-close" title="Close">×</button>
+        </div>
+        <div class="skill-gap-content">
+          <div class="skill-gap-summary" id="skillGapSummary">
+            <p>Compare keywords from multiple job postings to identify in-demand skills you may be missing.</p>
+          </div>
+          <div class="skill-gap-section" id="coreSkillsSection">
+            <h4>🎯 Most In-Demand Skills</h4>
+            <div class="skill-chips" id="coreSkillsChips"></div>
+          </div>
+          <div class="skill-gap-section" id="gapsSection">
+            <h4>⚠️ Potential Skill Gaps</h4>
+            <div class="skill-chips" id="gapsChips"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Generated Documents -->
+      <div class="documents-card hidden" id="documentsCard">
+        <!-- AI Match Analysis Panel -->
+        <div class="ai-match-analysis" id="aiMatchAnalysis">
+          <div class="match-panel-header">
+            <div class="panel-logo">
+              <span class="logo-icon">🎯</span>
+              <div class="logo-text">
+                <span class="panel-title">AI Match Analysis</span>
+                <span class="panel-subtitle">Powered by ATS Tailor</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="gauge-container" id="gaugeContainer">
+            <div class="ats-match-gauge">
+              <div class="gauge-circle">
+                <svg viewBox="0 0 100 100" class="gauge-svg">
+                  <circle class="gauge-bg" cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="8"/>
+                  <circle class="gauge-progress" id="matchGaugeCircle" cx="50" cy="50" r="45" fill="none" stroke="#00d4ff" stroke-width="8" stroke-linecap="round" stroke-dasharray="283" stroke-dashoffset="283" transform="rotate(-90 50 50)"/>
+                </svg>
+                <div class="gauge-text">
+                  <span class="gauge-percentage" id="matchPercentage">0%</span>
+                </div>
+              </div>
+              <div class="gauge-label">
+                <span class="gauge-title">Profile Match</span>
+                <span class="gauge-subtitle" id="matchSubtitle">Click "Tailor" to analyze your match score</span>
+                <span class="keyword-count-badge" id="keywordCountBadge">0 of 0 keywords matched</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="keywords-container" id="keywordsContainer">
+            <div class="keyword-match-header">
+              <span class="keyword-icon">🔍</span>
+              <span class="keyword-title">Keyword Match</span>
+            </div>
+            <p class="keyword-description">See which job keywords match your profile and what's missing to improve your score.</p>
+            
+            <div class="keyword-section priority-high" id="highPrioritySection">
+              <div class="keyword-section-header">
+                <span class="section-title">High Priority</span>
+                <span class="section-count" id="highPriorityCount">0/0</span>
+              </div>
+              <div class="keyword-chips" id="highPriorityChips"></div>
+            </div>
+            
+            <div class="keyword-section priority-medium" id="mediumPrioritySection">
+              <div class="keyword-section-header">
+                <span class="section-title">Medium Priority</span>
+                <span class="section-count" id="mediumPriorityCount">0/0</span>
+              </div>
+              <div class="keyword-chips" id="mediumPriorityChips"></div>
+            </div>
+            
+            <div class="keyword-section priority-low" id="lowPrioritySection">
+              <div class="keyword-section-header">
+                <span class="section-title">Low Priority</span>
+                <span class="section-count" id="lowPriorityCount">0/0</span>
+              </div>
+              <div class="keyword-chips" id="lowPriorityChips"></div>
+            </div>
+          </div>
+
+          <!-- NEW: Keyword Coverage Report (shows WHERE keywords appear in CV) -->
+          <div class="coverage-container hidden" id="coverageContainer">
+            <div class="coverage-header">
+              <div class="coverage-header-left">
+                <span class="coverage-icon">🧪</span>
+                <span class="coverage-title">Keyword Coverage (Injected)</span>
+              </div>
+              <button id="copyCoverageBtn" class="btn-icon" title="Copy coverage report">📋</button>
+            </div>
+            <p class="coverage-description">Debug view showing which keywords were injected and where they appear in your CV.</p>
+
+            <div class="coverage-section coverage-high">
+              <div class="coverage-section-header">
+                <span class="section-title">High Priority</span>
+                <span class="section-count" id="coverageHighCount">0/0</span>
+              </div>
+              <div class="coverage-list" id="coverageHighList"></div>
+            </div>
+
+            <div class="coverage-section coverage-medium">
+              <div class="coverage-section-header">
+                <span class="section-title">Medium Priority</span>
+                <span class="section-count" id="coverageMediumCount">0/0</span>
+              </div>
+              <div class="coverage-list" id="coverageMediumList"></div>
+            </div>
+
+            <div class="coverage-section coverage-low">
+              <div class="coverage-section-header">
+                <span class="section-title">Low Priority</span>
+                <span class="section-count" id="coverageLowCount">0/0</span>
+              </div>
+              <div class="coverage-list" id="coverageLowList"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ATS Match Section (legacy compact view) -->
+        <div class="ats-match-section hidden" id="atsMatchSection">
+          <div class="ats-match-header">
+            <span class="ats-label">ATS Match</span>
+            <span class="ats-score" id="atsMatchScore">0%</span>
+          </div>
+          <div class="ats-keywords hidden" id="atsKeywords">
+            <div class="keywords-matched" id="matchedKeywords"></div>
+            <div class="keywords-missing" id="missingKeywords"></div>
+          </div>
+        </div>
+
+        <h3>📄 Generated Documents</h3>
+        
+        <!-- Document List with Filenames -->
+        <div class="document-item" id="cvDocument">
+          <div class="document-info">
+            <span class="document-icon">📋</span>
+            <div class="document-details">
+              <span class="document-name" id="cvFileName">Tailored CV</span>
+              <span class="document-size" id="cvSize"></span>
+            </div>
+          </div>
+          <div class="document-actions">
+            <button id="downloadCv" class="btn btn-small btn-icon-only" title="Download PDF">⬇️</button>
+            <button id="downloadCvText" class="btn btn-small btn-icon-only" title="Download Text">📝</button>
+          </div>
+        </div>
+
+        <div class="document-item" id="coverDocument">
+          <div class="document-info">
+            <span class="document-icon">✉️</span>
+            <div class="document-details">
+              <span class="document-name" id="coverFileName">Cover Letter</span>
+              <span class="document-size" id="coverSize"></span>
+            </div>
+          </div>
+          <div class="document-actions">
+            <button id="downloadCover" class="btn btn-small btn-icon-only" title="Download PDF">⬇️</button>
+            <button id="downloadCoverText" class="btn btn-small btn-icon-only" title="Download Text">📝</button>
+          </div>
+        </div>
+
+        <!-- Preview Tabs -->
+        <div class="preview-tabs">
+          <button id="previewCvTab" class="preview-tab active">Resume</button>
+          <button id="previewCoverTab" class="preview-tab">Cover Letter</button>
+          <button id="previewTextTab" class="preview-tab">Text View</button>
+        </div>
+        
+        <!-- Preview Content -->
+        <div class="preview-content-wrapper">
+          <div id="previewContent" class="preview-content placeholder">Generated content will appear here...</div>
+        </div>
+        
+        <!-- Copy Button -->
+        <button id="copyContent" class="btn btn-secondary btn-copy">
+          <span class="btn-icon-left">📋</span> Copy
+        </button>
+
+        <button id="attachBoth" class="btn btn-success btn-large">
+          <span class="btn-icon-left">📎</span>
+          Attach Both to Application
+        </button>
+      </div>
+
+      <!-- Quick Stats -->
+      <div class="stats-card">
+        <div class="stat">
+          <span class="stat-value" id="todayCount">0</span>
+          <span class="stat-label">Today</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="totalCount">0</span>
+          <span class="stat-label">Total</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="avgTime">0s</span>
+          <span class="stat-label">Avg Time</span>
+        </div>
+      </div>
+
+      <!-- ATS TAILOR - Workday Profile Setup Section -->
+      <div class="workday-section ats-tailor-section">
+        <div class="section-header-badge">ATS TAILOR</div>
+        <h3>🚀 Workday Profile Setup</h3>
+        <p class="workday-hint">Automates: Apply → Create Account → Fill Form → Trigger ATS Tailor</p>
+        
+        <!-- Profile Status Display -->
+        <div class="workday-profile-status">
+          <div class="profile-row">
+            <span class="profile-label">Email:</span>
+            <span class="profile-value" id="workdayEmailDisplay">Maxokafordev@gmail.com</span>
+            <span class="status-check">✓</span>
+          </div>
+          <div class="profile-row">
+            <span class="profile-label">Password:</span>
+            <span class="profile-value">••••••••••</span>
+            <span class="status-check">✓</span>
+          </div>
+          <div class="profile-row">
+            <span class="profile-label">Verify Password:</span>
+            <span class="profile-value">••••••••••</span>
+            <span class="status-check">✓</span>
+          </div>
+        </div>
+        
+        <div class="workday-settings">
+          <label class="toggle-row" for="workdayAutoToggle">
+            <span class="toggle-label">Enable Workday Automation</span>
+            <input type="checkbox" id="workdayAutoToggle" checked />
+          </label>
+        </div>
+        
+        <button id="runWorkdayFlow" class="btn btn-accent btn-large btn-full btn-workday">
+          <span class="btn-icon-left">🚀</span>
+          <span class="btn-text">Start Workday Full Flow</span>
+        </button>
+        
+        <details class="workday-credentials">
+          <summary>Workday Account Settings</summary>
+          <div class="input-group">
+            <label for="workdayEmail">Email</label>
+            <input type="email" id="workdayEmail" value="Maxokafordev@gmail.com">
+          </div>
+          <div class="input-group">
+            <label for="workdayPassword">Password</label>
+            <input type="password" id="workdayPassword" value="May19315park@">
+          </div>
+          <div class="input-group">
+            <label for="workdayVerifyPassword">Verify Password</label>
+            <input type="password" id="workdayVerifyPassword" value="May19315park@">
+          </div>
+          <button id="saveWorkdayCreds" class="btn btn-secondary btn-sm">Save Credentials</button>
+        </details>
+      </div>
+
+      <!-- Bulk Apply Dashboard Entry -->
+      <div class="bulk-apply-entry">
+        <button id="openBulkApply" class="btn btn-secondary btn-large btn-full">
+          <span class="btn-icon-left">📊</span>
+          <span class="btn-text">Bulk Apply Dashboard</span>
+        </button>
+      </div>
+
+      <!-- Simplify ATS Score Breakdown -->
+      <div class="simplify-score-section hidden" id="simplifyScoreSection">
+        <div class="simplify-header">
+          <span class="simplify-logo">📊</span>
+          <span class="simplify-title">Simplify ATS Score</span>
+        </div>
+        <div class="score-breakdown">
+          <div class="score-item">
+            <span class="score-label">Keyword Coverage</span>
+            <div class="score-bar">
+              <div class="score-fill" id="keywordCoverageBar" style="width: 0%"></div>
+            </div>
+            <span class="score-value" id="keywordCoverageValue">0%</span>
+          </div>
+          <div class="score-item">
+            <span class="score-label">Experience Match</span>
+            <div class="score-bar">
+              <div class="score-fill" id="experienceMatchBar" style="width: 0%"></div>
+            </div>
+            <span class="score-value" id="experienceMatchValue">0%</span>
+          </div>
+          <div class="score-item">
+            <span class="score-label">Technical Alignment</span>
+            <div class="score-bar">
+              <div class="score-fill" id="technicalAlignmentBar" style="width: 0%"></div>
+            </div>
+            <span class="score-value" id="technicalAlignmentValue">0%</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <span class="version">v1.4.0 - OpenResume ATS</span>
+    </footer>
+  </div>
+
+  <!-- Core dependencies (load first) -->
+  <script src="mandatory-keywords.js"></script>
+  <script src="universal-jd-parser.js"></script>
+  <script src="reliable-extractor.js"></script>
+  <script src="tailor-universal.js"></script>
+  <script src="validation-engine.js"></script>
+  
+  <!-- Resume Builder (new) -->
+  <script src="resume-builder.js"></script>
+  
+  <!-- OpenResume Generator (NEW - perfect ATS PDFs) -->
+  <script src="openresume-generator.js"></script>
+  
+  <!-- Turbo Pipeline -->
+  <script src="turbo-pipeline.js"></script>
+  
+  <!-- UI and automation modules -->
+  <script src="dynamic-score.js"></script>
+  <script src="pdf-ats-turbo.js"></script>
+  
+  <!-- Main application (load last) -->
+  <script src="popup.js"></script>
+</body>
+</html>
