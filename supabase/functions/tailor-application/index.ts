@@ -912,13 +912,13 @@ ${JSON.stringify(userProfile.achievements, null, 2)}
    - Skills: Prioritize JD keywords (list as: Python, AWS, React, etc. - NO years of experience)
    - Certifications
 
-2) CREATE COVER LETTER:
-   ${candidateName}
-   ${userProfile.email} | ${userProfile.phone}
+2) CREATE COVER LETTER (NO COMPANY LINE BETWEEN DATE AND RE:):
+   ${candidateName.toUpperCase()}
+   ${userProfile.phone} | ${userProfile.email}
    
-   Date: ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+   ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
    
-   Re: Application for ${jobTitle}
+   Re: ${jobTitle}
    
    Dear Hiring Committee,
    
@@ -926,6 +926,13 @@ ${JSON.stringify(userProfile.achievements, null, 2)}
    
    Sincerely,
    ${candidateName}
+   
+   CRITICAL: Do NOT include a company name line between the date and "Re:" line. The header format must be exactly:
+   NAME (uppercase)
+   Phone | Email
+   Date
+   Re: Job Title
+   Dear Hiring Committee,
 
 ${includeReferral ? `
 3) CREATE REFERRAL EMAIL:
