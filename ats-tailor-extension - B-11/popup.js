@@ -1136,7 +1136,13 @@ class ATSTailor {
     
     if (this.currentJob) {
       if (titleEl) titleEl.textContent = this.currentJob.title || 'Job Position';
-      if (companyEl) companyEl.textContent = this.currentJob.company || '';
+      // Hide "the company" fallback - only show real company names
+      const company = this.currentJob.company || '';
+      const isValidCompany = company && company.toLowerCase() !== 'the company' && company.toLowerCase() !== 'company';
+      if (companyEl) {
+        companyEl.textContent = isValidCompany ? company : '';
+        companyEl.style.display = isValidCompany ? '' : 'none';
+      }
       if (locationEl) locationEl.textContent = this.currentJob.location || '';
       if (noJobBadge) noJobBadge.classList.add('hidden');
     } else {
