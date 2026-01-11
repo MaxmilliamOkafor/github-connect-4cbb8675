@@ -38,6 +38,21 @@ function validateStringArray(value: any, maxItems: number, maxStringLength: numb
   );
 }
 
+// Format phone for ATS: "+CountryCode: LocalNumber" (e.g., "+353: 0874261508")
+function formatPhoneForATS(phone: string): string {
+  if (!phone) return '';
+  
+  const cleaned = phone.replace(/[^\d+]/g, '');
+  
+  if (cleaned.startsWith('+')) {
+    const match = cleaned.match(/^\+(\d{1,3})(\d+)$/);
+    if (match) {
+      return `+${match[1]}: ${match[2]}`;
+    }
+  }
+  
+  return phone;
+}
 interface TailorRequest {
   jobTitle: string;
   company: string;
@@ -779,6 +794,8 @@ serve(async (req) => {
     const candidateName = `${userProfile.firstName} ${userProfile.lastName}`.trim();
     // File naming: FirstName_LastName format with underscores
     const candidateNameForFile = `${userProfile.firstName}_${userProfile.lastName}`.replace(/\s+/g, '_').trim();
+    // Format phone for ATS: "+CountryCode: Number" (e.g., "+353: 0874261508")
+    const formattedPhone = formatPhoneForATS(userProfile.phone);
     
     // Calculate target score - we want 95-100% after AI integration
     const currentMatchPercent = matchResult.matched.length / jdKeywords.allKeywords.length * 100;
@@ -858,7 +875,7 @@ Key Requirements: ${requirements.join(", ")}
 === CANDIDATE PROFILE ===
 Name: ${candidateName}
 Email: ${userProfile.email}
-Phone: ${userProfile.phone}
+Phone: ${formattedPhone}
 LinkedIn: ${userProfile.linkedin}
 GitHub: ${userProfile.github}
 Portfolio: ${userProfile.portfolio}
@@ -883,7 +900,7 @@ ${JSON.stringify(userProfile.achievements, null, 2)}
 
 1) CREATE RESUME with these exact sections:
    - Header: ${candidateName}
-   - Contact Line: ${userProfile.phone} | ${userProfile.email} | ${smartLocation}
+   - Contact Line: ${formattedPhone} | ${userProfile.email} | ${smartLocation} | open to relocation
    - Links Line: ${userProfile.linkedin} | ${userProfile.github || ''} | ${userProfile.portfolio || ''}
    - PROFESSIONAL SUMMARY: 4-6 lines of PURE QUALIFICATIONS ONLY.
       
@@ -892,7 +909,7 @@ ${JSON.stringify(userProfile.achievements, null, 2)}
       The PROFESSIONAL SUMMARY text must contain ZERO of these:
       • Name: "${candidateName}" → FORBIDDEN in summary
       • Email: "${userProfile.email}" → FORBIDDEN in summary  
-      • Phone: "${userProfile.phone}" → FORBIDDEN in summary
+      • Phone: "${formattedPhone}" → FORBIDDEN in summary
       • LinkedIn URL → FORBIDDEN in summary
       • GitHub URL → FORBIDDEN in summary
       • Portfolio URL → FORBIDDEN in summary
@@ -905,7 +922,7 @@ ${JSON.stringify(userProfile.achievements, null, 2)}
       "Experienced Principal Cloud Architect with over 8 years of expertise in cloud computing, data analytics, and machine learning. Proven track record in designing scalable solutions..."
       
       EXAMPLE OF WRONG SUMMARY (DO NOT DO THIS):
-      "${candidateName} ${userProfile.phone} | ${userProfile.email}..." ← THIS IS WRONG
+      "${candidateName} ${formattedPhone} | ${userProfile.email}..." ← THIS IS WRONG
       ███ END DUPLICATION BAN ███
    - Work Experience: Keep company/dates, rewrite bullets with JD keywords + metrics
    - Education
@@ -914,13 +931,13 @@ ${JSON.stringify(userProfile.achievements, null, 2)}
 
 2) CREATE COVER LETTER (NO COMPANY LINE BETWEEN DATE AND RE:):
    ${candidateName.toUpperCase()}
-   ${userProfile.phone} | ${userProfile.email}
+   ${formattedPhone} | ${userProfile.email}
    
    ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
    
    Re: ${jobTitle}
    
-   Dear Hiring Committee,
+   Dear Hiring Manager,
    
    [4 paragraphs: Hook showing genuine interest, Proof with specific metrics and achievements, Skills alignment with job requirements, Close with availability and enthusiasm]
    
@@ -932,7 +949,7 @@ ${JSON.stringify(userProfile.achievements, null, 2)}
    Phone | Email
    Date
    Re: Job Title
-   Dear Hiring Committee,
+   Dear Hiring Manager,
 
 ${includeReferral ? `
 3) CREATE REFERRAL EMAIL:
@@ -958,8 +975,8 @@ ${includeReferral ? `
     "personalInfo": {
       "name": "${candidateName}",
       "email": "${userProfile.email}",
-      "phone": "${userProfile.phone}",
-      "location": "${smartLocation}",
+      "phone": "${formattedPhone}",
+      "location": "${smartLocation} | open to relocation",
       "linkedin": "${userProfile.linkedin}",
       "github": "${userProfile.github}",
       "portfolio": "${userProfile.portfolio}"
