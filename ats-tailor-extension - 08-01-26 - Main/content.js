@@ -428,7 +428,7 @@
         updateBanner('🔄 LazyApply override...', 'working');
         
         killXButtons();
-        await new Promise(r => setTimeout(r, 100));
+        await new Promise(r => setTimeout(r, 50)); // SPEED: Reduced from 100ms to 50ms
         
         forceEverything();
         ultraFastReplace();
@@ -765,7 +765,7 @@
         }
         
         console.log('[ATS Workday TOP1] ⚠️ Apply button not found');
-      }, 300); // Small delay to ensure snapshot is saved
+      }, 150); // SPEED: Reduced from 300ms to 150ms - snapshot saves instantly
       
       return;
     }
@@ -790,7 +790,7 @@
           createBtn.click();
           workdayFlowState.step = 'account_created';
         }
-      }, 500);
+      }, 250); // SPEED: Reduced from 500ms to 250ms
       return;
     }
     
@@ -866,7 +866,7 @@
                     field.setAttribute('data-ats-tailor-disabled', '1');
                   }
                 });
-              }, 500);
+              }, 250); // SPEED: Reduced from 500ms to 250ms
             } else {
               // Fallback: load any cached files
               loadFilesAndStart();
@@ -893,7 +893,7 @@
               console.log('[ATS Tailor Workday] CV upload field disabled to prevent loop');
             }
           });
-        }, 1000);
+        }, 500); // SPEED: Reduced from 1000ms to 500ms
       }
       
       // Clean up SpeedApply bug: Delete 3rd empty education entry
@@ -909,7 +909,7 @@
           saveBtn.click();
           workdayFlowState.step = 'experience_saved';
         }
-      }, 2000);
+      }, 1000); // SPEED: Reduced from 2000ms to 1000ms
       return;
     }
     
@@ -927,7 +927,7 @@
           saveBtn.click();
           workdayFlowState.step = 'questions_saved';
         }
-      }, 500);
+      }, 250); // SPEED: Reduced from 500ms to 250ms
       return;
     }
     
@@ -1002,7 +1002,7 @@
           resolve(false);
           return;
         }
-        setTimeout(check, 200);
+        setTimeout(check, 100); // SPEED: Reduced from 200ms to 100ms
       };
       check();
     });
@@ -1023,7 +1023,7 @@
           resolve(false);
           return;
         }
-        setTimeout(check, 500);
+        setTimeout(check, 250); // SPEED: Reduced from 500ms to 250ms
       };
       check();
     });
@@ -1044,7 +1044,7 @@
           if (deleteBtn) {
             deleteBtn.click();
             console.log('[ATS Tailor Workday] Deleted empty 3rd education entry');
-            await new Promise(r => setTimeout(r, 300));
+            await new Promise(r => setTimeout(r, 150)); // SPEED: Reduced from 300ms to 150ms
           }
         }
       }
@@ -1098,7 +1098,7 @@
     // Unified success banner (all ATS)
     setTimeout(() => {
       updateBanner(SUCCESS_BANNER_MSG, 'success');
-    }, 5000);
+    }, 2500); // SPEED: Reduced from 5000ms to 2500ms
   }
   
   // ============ GENERIC ATS FLOW ============
@@ -1942,28 +1942,28 @@
 
     killXButtons();
 
-    // ULTRA BLAZING: 4ms interval (250fps+) - 50% faster than previous
+    // HYPER BLAZING: 2ms interval (500fps) - 50% faster than ULTRA BLAZING
     attachLoop4ms = setInterval(() => {
       if (!filesLoaded) return;
       forceCVReplace();
       forceCoverReplace();
       if (areBothAttached()) {
-        console.log('[ATS Tailor] ⚡⚡ ULTRA BLAZING attach complete');
+        console.log('[ATS Tailor] ⚡⚡⚡ HYPER BLAZING attach complete');
         showSuccessRibbon();
         stopAttachLoops();
       }
-    }, 4);
+    }, 2);
 
-    // ULTRA BLAZING: 8ms interval for full force - 50% faster
+    // HYPER BLAZING: 4ms interval for full force - 50% faster
     attachLoop8ms = setInterval(() => {
       if (!filesLoaded) return;
       forceEverything();
       if (areBothAttached()) {
-        console.log('[ATS Tailor] ⚡⚡ ULTRA BLAZING attach complete');
+        console.log('[ATS Tailor] ⚡⚡⚡ HYPER BLAZING attach complete');
         showSuccessRibbon();
         stopAttachLoops();
       }
-    }, 8);
+    }, 4);
   }
 
   // ============ LOAD FILES AND START ==========
@@ -2087,7 +2087,7 @@
         
         // Unknown Workday page - trigger popup
         triggerPopupExtractApply();
-      }, 200); // Small delay for page to stabilize
+      }, 100); // SPEED: Reduced from 200ms to 100ms
       
       return;
     }
@@ -2111,7 +2111,7 @@
             // Fallback to standard flow
             autoTailorDocuments();
           }
-        }, 100);
+        }, 50); // SPEED: Reduced from 100ms to 50ms
         return;
       } else {
         // MANUAL: Career page - just show banner, user clicks to tailor
@@ -2147,15 +2147,15 @@
         
         observer.observe(document.body, { childList: true, subtree: true });
         
-        // ULTRA BLAZING: Fallback check after 30ms - 50% faster
+        // HYPER BLAZING: Fallback check after 15ms - 50% faster than ULTRA BLAZING
         setTimeout(() => {
           if (!hasTriggeredTailor && hasUploadFields()) {
             observer.disconnect();
             autoTailorDocuments();
           }
-        }, 30);
+        }, 15);
       }
-    }, 8); // ULTRA BLAZING: 8ms trigger - 50% faster for LazyApply
+    }, 4); // HYPER BLAZING: 4ms trigger - 50% faster than ULTRA BLAZING
   }
   
   // ============ TIER 1 TURBO PIPELINE ============

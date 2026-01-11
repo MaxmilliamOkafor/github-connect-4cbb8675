@@ -78,8 +78,9 @@
 
   // ============ ASYNC UTILITIES ============
 
+  // SPEED: Removed yieldToUI delays - unnecessary for modern browsers
   function yieldToUI() {
-    return new Promise(resolve => setTimeout(resolve, 0));
+    return Promise.resolve(); // Instant return - no delay needed
   }
 
   function filterTechnicalKeywords(keywords) {
