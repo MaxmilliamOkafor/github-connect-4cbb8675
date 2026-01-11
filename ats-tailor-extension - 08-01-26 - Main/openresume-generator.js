@@ -319,6 +319,7 @@
 
     // ============ NORMALIZE LOCATION ============
     // HARD RULE: NEVER include "Remote" in CV location (recruiter red flag)
+    // Output format: "City, State" for US cities (e.g., "San Francisco, CA")
     normalizeLocation(location) {
       if (!location) return '';
       
@@ -326,7 +327,7 @@
       let normalized = location
         .replace(/\b(remote|work\s*from\s*home|wfh|virtual|fully\s*remote|remote\s*first|remote\s*friendly)\b/gi, '')
         .replace(/\s*[\(\[]?\s*(remote|wfh|virtual)\s*[\)\]]?\s*/gi, '')
-        .replace(/\s*(\||,|\/|-)\s*(\||,|\/|-)\s*/g, ' | ')
+        .replace(/\s*(\||,|\/|-)\s*(\||,|\/|-)\s*/g, ', ')
         .replace(/\s*(\||,|\/|-)\s*$/g, '')
         .replace(/^\s*(\||,|\/|-)\s*/g, '')
         .replace(/\s{2,}/g, ' ')
@@ -337,11 +338,60 @@
         return '';
       }
       
-      // Remove country codes, normalize format
-      return normalized
-        .replace(/,\s*(US|USA|United States)$/i, '')
-        .replace(/,\s*(UK|United Kingdom)$/i, '')
+      // US State abbreviation mapping for "City, State" format
+      const stateAbbrev = {
+        'california': 'CA', 'texas': 'TX', 'new york': 'NY', 'florida': 'FL',
+        'illinois': 'IL', 'pennsylvania': 'PA', 'ohio': 'OH', 'georgia': 'GA',
+        'north carolina': 'NC', 'michigan': 'MI', 'new jersey': 'NJ', 'virginia': 'VA',
+        'washington': 'WA', 'arizona': 'AZ', 'massachusetts': 'MA', 'tennessee': 'TN',
+        'indiana': 'IN', 'missouri': 'MO', 'maryland': 'MD', 'wisconsin': 'WI',
+        'colorado': 'CO', 'minnesota': 'MN', 'south carolina': 'SC', 'alabama': 'AL',
+        'louisiana': 'LA', 'kentucky': 'KY', 'oregon': 'OR', 'oklahoma': 'OK',
+        'connecticut': 'CT', 'utah': 'UT', 'iowa': 'IA', 'nevada': 'NV',
+        'arkansas': 'AR', 'mississippi': 'MS', 'kansas': 'KS', 'new mexico': 'NM',
+        'nebraska': 'NE', 'idaho': 'ID', 'west virginia': 'WV', 'hawaii': 'HI',
+        'new hampshire': 'NH', 'maine': 'ME', 'montana': 'MT', 'rhode island': 'RI',
+        'delaware': 'DE', 'south dakota': 'SD', 'north dakota': 'ND', 'alaska': 'AK',
+        'vermont': 'VT', 'wyoming': 'WY', 'district of columbia': 'DC'
+      };
+      
+      // Convert full state names to abbreviations (City, California -> City, CA)
+      for (const [full, abbrev] of Object.entries(stateAbbrev)) {
+        const regex = new RegExp(`,\\s*${full}\\s*$`, 'i');
+        if (regex.test(normalized)) {
+          normalized = normalized.replace(regex, `, ${abbrev}`);
+          break;
+        }
+      }
+      
+      // Remove "USA", "United States", "US" suffixes but keep state abbreviation
+      normalized = normalized
+        .replace(/,\s*(US|USA|United States)\s*$/i, '')
+        .replace(/,\s*(UK|United Kingdom)\s*$/i, '')
         .trim();
+      
+      return normalized;
+    },
+    
+    // ============ FORMAT PHONE FOR ATS ============
+    // Format: "+CountryCode: LocalNumber" (e.g., "+353: 0874261508")
+    formatPhoneForATS(phone) {
+      if (!phone) return '';
+      
+      // Remove all non-digit and non-plus characters
+      let cleaned = phone.replace(/[^\d+]/g, '');
+      
+      // If starts with +, format as "+XXX: rest"
+      if (cleaned.startsWith('+')) {
+        // Match country code (1-3 digits after +)
+        const match = cleaned.match(/^\+(\d{1,3})(\d+)$/);
+        if (match) {
+          return `+${match[1]}: ${match[2]}`;
+        }
+      }
+      
+      // Return original if no country code detected
+      return phone;
     },
 
     // ============ ENHANCE SUMMARY WITH KEYWORDS ============
@@ -603,9 +653,13 @@
       y += 2;
 
       // === CONTACT LINE ===
-      const contactParts = [data.contact.phone, data.contact.email, data.contact.location].filter(Boolean);
+      // Format: "+CountryCode: Number | email | City, State | open to relocation"
+      const formattedPhone = this.formatPhoneForATS(data.contact.phone);
+      const contactParts = [formattedPhone, data.contact.email, data.contact.location].filter(Boolean);
       if (contactParts.length > 0) {
-        addText(contactParts.join(' | '), false, true, font.body);
+        // Add "open to relocation" if location exists
+        const contactLine = contactParts.join(' | ') + (data.contact.location ? ' | open to relocation' : '');
+        addText(contactLine, false, true, font.body);
       }
 
       // === LINKS LINE ===
@@ -690,9 +744,11 @@
     // ============ GENERATE CV TEXT (Fallback) ============
     generateCVText(data) {
       const lines = [];
+      const formattedPhone = this.formatPhoneForATS(data.contact.phone);
       
       lines.push(data.contact.name.toUpperCase());
-      lines.push([data.contact.phone, data.contact.email, data.contact.location].filter(Boolean).join(' | '));
+      const contactParts = [formattedPhone, data.contact.email, data.contact.location].filter(Boolean);
+      lines.push(contactParts.join(' | ') + (data.contact.location ? ' | open to relocation' : ''));
       lines.push([data.contact.linkedin, data.contact.github, data.contact.portfolio].filter(Boolean).join(' | '));
       lines.push('');
 
@@ -805,7 +861,8 @@
       y += 2;
       
       // Phone | Email format (no location in cover letter header)
-      const contactLine = [data.contact.phone, data.contact.email].filter(Boolean).join(' | ');
+      const formattedPhone = this.formatPhoneForATS(data.contact.phone);
+      const contactLine = [formattedPhone, data.contact.email].filter(Boolean).join(' | ');
       addCenteredText(contactLine, false, font.body);
       y += 16;
 
@@ -885,9 +942,10 @@
       const highPriority = Array.isArray(keywordsArray) ? keywordsArray.slice(0, 5) : [];
 
       // Format: Name, Phone | Email, Date, Re: Title, Dear Hiring Manager (NO company name line)
+      const formattedPhone = this.formatPhoneForATS(data.contact.phone);
       const lines = [
         name.toUpperCase(),
-        [data.contact.phone, data.contact.email].filter(Boolean).join(' | '),
+        [formattedPhone, data.contact.email].filter(Boolean).join(' | '),
         '',
         new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
         '',

@@ -148,20 +148,75 @@
       // This applies even if it exists in the stored profile or uploaded base CV
       location = this.stripRemoteFromLocation(location);
       
+      // Normalize location to "City, State" format for US locations
+      location = this.normalizeLocationFormat(location);
+      
       // If location becomes empty after stripping, use default Dublin, IE
       if (!location || location.length < 3) {
         location = 'Dublin, IE';
       }
 
+      // Format phone for ATS: "+CountryCode: Number"
+      const formattedPhone = this.formatPhoneForATS(phone);
+
       // Build contact parts - only include non-empty values
-      const contactParts = [phone, email, location].filter(Boolean);
+      const contactParts = [formattedPhone, email, location].filter(Boolean);
       const linkParts = [linkedin, github].filter(Boolean);
 
       return {
         name,
-        contactLine: contactParts.join(' | '),
+        contactLine: contactParts.join(' | ') + (location ? ' | open to relocation' : ''),
         linksLine: linkParts.join(' | ')
       };
+    },
+    
+    // ============ FORMAT PHONE FOR ATS ============
+    // Format: "+CountryCode: LocalNumber" (e.g., "+353: 0874261508")
+    formatPhoneForATS(phone) {
+      if (!phone) return '';
+      
+      let cleaned = phone.replace(/[^\d+]/g, '');
+      
+      if (cleaned.startsWith('+')) {
+        const match = cleaned.match(/^\+(\d{1,3})(\d+)$/);
+        if (match) {
+          return `+${match[1]}: ${match[2]}`;
+        }
+      }
+      
+      return phone;
+    },
+    
+    // ============ NORMALIZE LOCATION FORMAT ============
+    // Output: "City, State" for US locations (e.g., "San Francisco, CA")
+    normalizeLocationFormat(location) {
+      if (!location) return '';
+      
+      const stateAbbrev = {
+        'california': 'CA', 'texas': 'TX', 'new york': 'NY', 'florida': 'FL',
+        'illinois': 'IL', 'pennsylvania': 'PA', 'ohio': 'OH', 'georgia': 'GA',
+        'north carolina': 'NC', 'michigan': 'MI', 'new jersey': 'NJ', 'virginia': 'VA',
+        'washington': 'WA', 'arizona': 'AZ', 'massachusetts': 'MA', 'tennessee': 'TN',
+        'indiana': 'IN', 'missouri': 'MO', 'maryland': 'MD', 'wisconsin': 'WI',
+        'colorado': 'CO', 'minnesota': 'MN', 'south carolina': 'SC', 'alabama': 'AL',
+        'louisiana': 'LA', 'kentucky': 'KY', 'oregon': 'OR', 'oklahoma': 'OK',
+        'connecticut': 'CT', 'utah': 'UT', 'iowa': 'IA', 'nevada': 'NV'
+      };
+      
+      let normalized = location.trim();
+      
+      for (const [full, abbrev] of Object.entries(stateAbbrev)) {
+        const regex = new RegExp(`,\\s*${full}\\s*$`, 'i');
+        if (regex.test(normalized)) {
+          normalized = normalized.replace(regex, `, ${abbrev}`);
+          break;
+        }
+      }
+      
+      return normalized
+        .replace(/,\s*(US|USA|United States)\s*$/i, '')
+        .replace(/,\s*(UK|United Kingdom)\s*$/i, '')
+        .trim();
     },
 
     // ============ STRIP REMOTE FROM LOCATION (HARD RULE) ============

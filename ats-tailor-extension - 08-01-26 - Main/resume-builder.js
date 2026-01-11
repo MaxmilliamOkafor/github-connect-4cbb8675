@@ -100,12 +100,31 @@
       const linkedin = data.linkedin || '';
       const github = data.github || '';
       const portfolio = data.portfolio || '';
+      
+      // Format phone for ATS: "+CountryCode: Number"
+      const formattedPhone = this.formatPhoneForATS(phone);
 
       return {
         name: name || 'Applicant',
-        contactLine: [phone, email, location].filter(Boolean).join(' | '),
+        contactLine: [formattedPhone, email, location].filter(Boolean).join(' | ') + (location ? ' | open to relocation' : ''),
         linksLine: [linkedin, github, portfolio].filter(Boolean).join(' | ')
       };
+    },
+    
+    // ============ FORMAT PHONE FOR ATS ============
+    formatPhoneForATS(phone) {
+      if (!phone) return '';
+      
+      let cleaned = phone.replace(/[^\d+]/g, '');
+      
+      if (cleaned.startsWith('+')) {
+        const match = cleaned.match(/^\+(\d{1,3})(\d+)$/);
+        if (match) {
+          return `+${match[1]}: ${match[2]}`;
+        }
+      }
+      
+      return phone;
     },
 
     // ============ BUILD SUMMARY SECTION ============
